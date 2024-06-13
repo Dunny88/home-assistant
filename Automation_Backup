@@ -1,0 +1,145 @@
+- id: '1682457798438'
+  alias: Claire Leaves home
+  description: ''
+  use_blueprint:
+    path: homeassistant/notify_leaving_zone.yaml
+    input:
+      zone_entity: zone.home
+      notify_device: 155e51c616a4d43520f596f5ae060fa1
+      person_entity: person.claire
+- id: '1682458317223'
+  alias: Low battery
+  description: ''
+  use_blueprint:
+    path: sbyx/low-battery-level-detection-notification-for-all-battery-sensors.yaml
+    input:
+      time: '18:00:00'
+      actions:
+      - device_id: 155e51c616a4d43520f596f5ae060fa1
+        domain: mobile_app
+        type: notify
+        message: Battery low - {{sensors}}
+      threshold: 20
+- id: '1685912890652'
+  alias: James leaves home
+  description: ''
+  use_blueprint:
+    path: homeassistant/notify_leaving_zone.yaml
+    input:
+      zone_entity: zone.home
+      notify_device: b0c16d1faacb8d59717ea418e714ff5a
+      person_entity: person.james
+- id: '1685992949930'
+  alias: Lights off when away
+  description: Turn off all the house lights when both detected as away
+  trigger:
+  - platform: zone
+    entity_id: person.james
+    zone: zone.home
+    event: leave
+  - platform: zone
+    entity_id: person.claire
+    zone: zone.home
+    event: leave
+  condition:
+  - condition: device
+    device_id: 155e51c616a4d43520f596f5ae060fa1
+    domain: device_tracker
+    entity_id: device_tracker.james_phone_2
+    type: is_not_home
+  - condition: device
+    device_id: b0c16d1faacb8d59717ea418e714ff5a
+    domain: device_tracker
+    entity_id: device_tracker.claire_s_phone
+    type: is_not_home
+  action:
+  - service: light.turn_off
+    data: {}
+    target:
+      entity_id: light.home_lights
+  mode: single
+- id: '1695145842070'
+  alias: 9:00pm Hoover
+  description: ''
+  trigger:
+  - platform: time
+    at: '21:00:00'
+  condition: []
+  action:
+  - device_id: a6c2410499378a87f07df24ce545319b
+    domain: vacuum
+    entity_id: 0fe5bb20e791fd63c9cd24e49b987c3c
+    type: clean
+  mode: single
+- id: '1698426719095'
+  alias: Run Vacuum when away
+  description: Run the vacuum when both detected as away
+  trigger:
+  - platform: zone
+    entity_id: person.james
+    zone: zone.home
+    event: leave
+  - platform: zone
+    entity_id: person.claire
+    zone: zone.home
+    event: leave
+  condition:
+  - condition: device
+    device_id: 155e51c616a4d43520f596f5ae060fa1
+    domain: device_tracker
+    entity_id: device_tracker.james_phone_2
+    type: is_not_home
+  - condition: device
+    device_id: b0c16d1faacb8d59717ea418e714ff5a
+    domain: device_tracker
+    entity_id: device_tracker.claire_s_phone
+    type: is_not_home
+  action:
+  - device_id: a6c2410499378a87f07df24ce545319b
+    domain: vacuum
+    entity_id: 0fe5bb20e791fd63c9cd24e49b987c3c
+    type: clean
+  mode: single
+- id: '1713029386535'
+  alias: Entrance-Open-light
+  description: Light on upon opening front door
+  use_blueprint:
+    path: bergstrom/door-sensor-turn-on-off-light.yaml
+    input:
+      doorsensor_entity: binary_sensor.entrance_sensor_opening
+      light_target:
+        area_id: entrance
+        device_id: 6c7c0bd8c667dc6d574d2a2ff5a02f61
+      door_closed_wait: 180
+- id: '1715954245818'
+  alias: Night lights_phone chrage
+  description: ''
+  trigger:
+  - platform: state
+    entity_id:
+    - binary_sensor.james_phone_is_charging_2
+    from:
+    to: 'on'
+    for:
+      hours: 0
+      minutes: 2
+      seconds: 0
+  condition:
+  - condition: time
+    after: '22:00:00'
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+    - sat
+    - sun
+    before: 06:00:00
+  action:
+  - service: light.turn_off
+    metadata: {}
+    data: {}
+    target:
+      entity_id: light.home_lights
+  mode: single
