@@ -30,8 +30,9 @@
       notify_device: b0c16d1faacb8d59717ea418e714ff5a
       person_entity: person.james
 - id: '1685992949930'
-  alias: Lights off when away
-  description: Turn off all the house lights when both detected as away
+  alias: Routines when away
+  description: 'Complete routines when away: turn off all lights, run vacuum and turn
+    down thermostat'
   trigger:
   - platform: zone
     entity_id: person.james
@@ -42,82 +43,41 @@
     zone: zone.home
     event: leave
   condition:
-  - condition: device
-    device_id: 155e51c616a4d43520f596f5ae060fa1
-    domain: device_tracker
-    entity_id: device_tracker.james_phone_2
-    type: is_not_home
-  - condition: device
-    device_id: b0c16d1faacb8d59717ea418e714ff5a
-    domain: device_tracker
-    entity_id: device_tracker.claire_s_phone
-    type: is_not_home
+  - condition: and
+    conditions:
+    - condition: state
+      entity_id: device_tracker.james_phone_2
+      state: not_home
+    - condition: state
+      entity_id: device_tracker.claire_s_phone
+      state: not_home
   action:
   - service: light.turn_off
     data: {}
     target:
       entity_id: light.home_lights
+  - service: vacuum.start
+    metadata: {}
+    data: {}
+    target:
+      device_id: a6c2410499378a87f07df24ce545319b
   mode: single
-- id: '1695145842070'
-  alias: 9:00pm Hoover
-  description: ''
-  trigger:
-  - platform: time
-    at: '21:00:00'
-  condition: []
-  action:
-  - device_id: a6c2410499378a87f07df24ce545319b
-    domain: vacuum
-    entity_id: 0fe5bb20e791fd63c9cd24e49b987c3c
-    type: clean
-  mode: single
-- id: '1698426719095'
-  alias: Run Vacuum when away
-  description: Run the vacuum when both detected as away
-  trigger:
-  - platform: zone
-    entity_id: person.james
-    zone: zone.home
-    event: leave
-  - platform: zone
-    entity_id: person.claire
-    zone: zone.home
-    event: leave
-  condition:
-  - condition: device
-    device_id: 155e51c616a4d43520f596f5ae060fa1
-    domain: device_tracker
-    entity_id: device_tracker.james_phone_2
-    type: is_not_home
-  - condition: device
-    device_id: b0c16d1faacb8d59717ea418e714ff5a
-    domain: device_tracker
-    entity_id: device_tracker.claire_s_phone
-    type: is_not_home
-  action:
-  - device_id: a6c2410499378a87f07df24ce545319b
-    domain: vacuum
-    entity_id: 0fe5bb20e791fd63c9cd24e49b987c3c
-    type: clean
-  mode: single
-- id: '1713029386535'
-  alias: Entrance-Open-light
-  description: Light on upon opening front door
-  use_blueprint:
-    path: bergstrom/door-sensor-turn-on-off-light.yaml
-    input:
-      doorsensor_entity: binary_sensor.entrance_sensor_opening
-      light_target:
-        area_id: entrance
-        device_id: 6c7c0bd8c667dc6d574d2a2ff5a02f61
-      door_closed_wait: 180
 - id: '1715954245818'
-  alias: Night lights_phone chrage
-  description: ''
+  alias: Turn off lights at night
+  description: Turn off the lights in the house when James' phone goes on charge
   trigger:
   - platform: state
     entity_id:
-    - binary_sensor.james_phone_is_charging_2
+    - binary_sensor.pixel_7a_is_charging
+    from:
+    to: 'on'
+    for:
+      hours: 0
+      minutes: 2
+      seconds: 0
+  - platform: state
+    entity_id:
+    - binary_sensor.claire_s_phone_is_charging
     from:
     to: 'on'
     for:
@@ -143,3 +103,125 @@
     target:
       entity_id: light.home_lights
   mode: single
+- id: '1718365326930'
+  alias: Entrance light on from sensor
+  description: ''
+  trigger:
+  - platform: state
+    entity_id:
+    - binary_sensor.entrance_sensor_opening
+    from: 'off'
+    to: 'on'
+  condition:
+  - condition: sun
+    before: sunrise
+    after: sunset
+  action:
+  - service: light.turn_on
+    metadata: {}
+    data:
+      brightness_pct: 100
+    target:
+      area_id: entrance
+      device_id: 6c7c0bd8c667dc6d574d2a2ff5a02f61
+  - delay:
+      hours: 0
+      minutes: 3
+      seconds: 0
+      milliseconds: 0
+  - service: light.turn_off
+    metadata: {}
+    data: {}
+    target:
+      area_id: entrance
+      device_id: 6c7c0bd8c667dc6d574d2a2ff5a02f61
+  mode: single
+- id: bin_day_reminder
+  alias: Bin Day Reminder
+  trigger:
+  - platform: time
+    at: '21:00:00'
+  condition:
+  - condition: template
+    value_template: '{% set today = now().date() %} {% set bin_day = as_timestamp(state_attr(''calendar.amber_valley_borough_council'',
+      ''start_time'')).timestamp() %} {{ bin_day == today.timestamp() + 86400 }}  #
+      Check if bin day is tomorrow
+
+      '
+  action:
+  - service: notify.mobile_app_pixel_7a
+    data:
+      message: Don't forget to take the bin out tomorrow!
+  - repeat:
+      count: 20
+      sequence:
+      - service: light.turn_on
+        metadata: {}
+        data: {}
+        target:
+          area_id: entrance
+          device_id: 6c7c0bd8c667dc6d574d2a2ff5a02f61
+      - delay:
+          hours: 0
+          minutes: 0
+          seconds: 4
+          milliseconds: 0
+      - service: light.turn_off
+        metadata: {}
+        data: {}
+        target:
+          area_id: entrance
+          device_id: 6c7c0bd8c667dc6d574d2a2ff5a02f61
+      - delay:
+          hours: 0
+          minutes: 0
+          seconds: 4
+          milliseconds: 0
+  - delay: 00:05:00
+    enabled: false
+  - service: light.turn_off
+    data: {}
+    target:
+      device_id: 6c7c0bd8c667dc6d574d2a2ff5a02f61
+      area_id: entrance
+- id: morning_routine
+  alias: Morning Routine
+  trigger:
+  - platform: time_pattern
+    minutes: /1
+  condition:
+  - condition: template
+    value_template: '{{ states(''sensor.pixel_7a_next_alarm'') not in [''unknown'',
+      ''unavailable'', ''none''] }}'
+  action:
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: "{% set next_alarm = states('sensor.pixel_7a_next_alarm')
+          %} {% if next_alarm not in ['unknown', 'unavailable', 'none'] %}\n  {{ (as_timestamp(next_alarm)
+          - now().timestamp()) <= 600 and (as_timestamp(next_alarm) - now().timestamp())
+          > 0 }}\n{% else %}\n  false\n{% endif %}\n"
+      sequence:
+      - service: light.turn_on
+        entity_id: light.james_bedside_lamp_light
+        data:
+          brightness: 5
+      - repeat:
+          count: 20
+          sequence:
+          - delay: 00:01:00
+          - service: light.turn_on
+            entity_id: light.james_bedside_lamp_light
+            data:
+              brightness_step_pct: 5
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: "{% set next_alarm = states('sensor.pixel_7a_next_alarm')
+          %} {% if next_alarm not in ['unknown', 'unavailable', 'none'] %}\n  {{ (as_timestamp(next_alarm)
+          - now().timestamp()) <= 0 and (as_timestamp(next_alarm) - now().timestamp())
+          > -60 }}\n{% else %}\n  false\n{% endif %}\n"
+      sequence:
+      - service: switch.turn_on
+        entity_id: switch.sengled_plug
+
